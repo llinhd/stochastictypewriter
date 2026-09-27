@@ -76,7 +76,6 @@ p {
   height: clamp(150px, 30vh, 280px);
   border: 1px solid #cbcbcb;
   background-color: rgba(255, 255, 255, 0.5);
-  padding: 34px 4px 28px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -195,9 +194,9 @@ p {
 }}
 .circle {
   position: absolute;
-  width:20px;
-  height: 20px;
-  top: 20px;
+  width:clamp(10px, 1vw, 18px);
+  height: clamp(10px, 1vw, 18px);
+  top: 13px;
   left: 50%;
   transform: translateX(-50%);
   border-radius: 50%;
@@ -209,10 +208,10 @@ p {
 }
 .circle-2 {
   position: absolute;
-  width:20px;
-  height: 20px;
+  width:clamp(10px, 1vw, 18px);
+  height: clamp(10px, 1vw, 18px);
   right: auto;
-  bottom: 20px;
+  bottom: 13px;
   left: 50%;
   transform: translateX(-50%);
   border-radius: 50%;
@@ -236,7 +235,7 @@ p {
   writing-mode: vertical-rl;
   transform: rotate(-170deg);
   line-height: 2;
-  font-size: clamp(14px, 1.4vw, 22px);
+  font-size: clamp(10px, 1vw, 20px);
   font-variation-settings: "wght" 500;
   text-transform: none;
 }
@@ -852,7 +851,7 @@ input[type="range"]::-ms-thumb{
 #website-metadata {
   position: fixed;
   right: 18px;
-  margin-top: 50px;
+  margin-top: 30px;
   z-index: 10;
   color: rgba(0, 0, 0, 0.72);
   font-size: 16px;
@@ -1061,7 +1060,10 @@ body.app-page-reading #reading-page { display: flex; }
 .typing-sidebar:has(.folder[data-book="6"].is-active-folder) .folder[data-book="3"] { transform: rotate(-20deg); }
 .typing-sidebar:has(.folder[data-book="6"].is-active-folder) .folder[data-book="4"] { transform: rotate(-30deg); }
 .typing-sidebar:has(.folder[data-book="6"].is-active-folder) .folder[data-book="5"] { transform: rotate(-40deg); }
-.reading-folder-list .folder { flex-basis: clamp(50px, 4vw, 60px); width: clamp(50px, 4vw, 60px); height: clamp(150px, 30vh, 280px); }
+.reading-folder-list .folder { 
+  flex-basis: clamp(50px, 4vw, 60px); 
+  width: clamp(50px, 4vw, 60px); 
+  height: clamp(150px, 30vh, 280px); }
 .folder .title { display: block; }
 .typing-workspace { 
   flex: 1; 
@@ -1117,8 +1119,14 @@ body.app-page-reading #reading-page { display: flex; }
 .typing-topbar .typing-sidebar .folder-list {
   position: static;
   top: auto;
-  height: clamp(190px, 35vh, 330px);
+  height: clamp(135px, 25vh, 230px);
   margin: 0;
+}
+.typing-topbar .typing-sidebar .folder-list .folder {
+  flex-basis: clamp(42px, 3.5vw, 56px);
+  width: clamp(42px, 3.5vw, 56px);
+  height: clamp(135px, 25vh, 230px);
+  padding: clamp(22px, 2.5vh, 28px) 3px clamp(18px, 2vh, 24px);
 }
 .folder-description {
   align-self: flex-end;
@@ -1172,9 +1180,19 @@ body.app-page-reading #reading-page { display: flex; }
   position: absolute; 
   z-index: 1; 
   left: var(--reading-page-edge); 
-  top: 30%; width: auto; transform: translateY(-50%); }
-.reading-folder-list { position: static; top: auto; height: clamp(160px, 30vh, 280px); margin: 0; gap: 20px; }
-.reading-folder-list .folder { flex-basis: clamp(50px, 4.25vw, 64px); width: clamp(50px, 4.25vw, 64px); height: clamp(160px, 30vh, 280px); }
+  top: 30%; 
+  width: auto; 
+  transform: translateY(-50%); }
+.reading-folder-list { 
+  position: static; 
+  top: auto; 
+  height: clamp(135px, 25vh, 230px); 
+  margin: 0; gap: clamp(10px, 1.25vw, 18px); }
+.reading-folder-list .folder { 
+  flex-basis: clamp(42px, 3.5vw, 56px); 
+  width: clamp(42px, 3.5vw, 56px); 
+  height: clamp(135px, 25vh, 230px); 
+  padding: clamp(22px, 2.5vh, 28px) 3px clamp(18px, 2vh, 24px); }
 .reading-sidebar .folder { transition: transform .28s ease; }
 .reading-sidebar:has(.folder[data-book="3"].is-active-folder) .folder[data-book="2"],
 .reading-sidebar:has(.folder[data-book="4"].is-active-folder) .folder[data-book="2"],
@@ -1184,22 +1202,26 @@ body.app-page-reading #reading-page { display: flex; }
 .reading-sidebar:has(.folder[data-book="4"].is-active-folder) .folder[data-book="3"],
 .reading-sidebar:has(.folder[data-book="5"].is-active-folder) .folder[data-book="3"] { transform: rotate(-20deg); }
 .reading-sidebar:has(.folder[data-book="5"].is-active-folder) .folder[data-book="4"] { transform: rotate(-30deg); }
+.reading-sidebar:has(.folder[data-book="2"].is-active-folder) .folder[data-book="5"],
+.reading-sidebar:has(.folder[data-book="4"].is-active-folder) .folder[data-book="5"],
+.reading-sidebar:has(.folder[data-book="1"].is-active-folder) .folder[data-book="5"],
+.reading-sidebar:has(.folder[data-book="3"].is-active-folder) .folder[data-book="5"] { transform: rotate(10deg); }
 .reading-sidebar:has(.folder[data-book="2"].is-active-folder) .folder[data-book="4"],
-.reading-sidebar:has(.folder[data-book="1"].is-active-folder) .folder[data-book="4"],
-.reading-sidebar:has(.folder[data-book="3"].is-active-folder) .folder[data-book="4"] { transform: rotate(10deg); }
+.reading-sidebar:has(.folder[data-book="3"].is-active-folder) .folder[data-book="4"],
+.reading-sidebar:has(.folder[data-book="1"].is-active-folder) .folder[data-book="4"] { transform: rotate(20deg); }
 .reading-sidebar:has(.folder[data-book="2"].is-active-folder) .folder[data-book="3"],
-.reading-sidebar:has(.folder[data-book="1"].is-active-folder) .folder[data-book="3"] { transform: rotate(20deg); }
-.reading-sidebar:has(.folder[data-book="1"].is-active-folder) .folder[data-book="2"] { transform: rotate(30deg); }
+.reading-sidebar:has(.folder[data-book="1"].is-active-folder) .folder[data-book="3"] { transform: rotate(30deg); }
+.reading-sidebar:has(.folder[data-book="1"].is-active-folder) .folder[data-book="2"] { transform: rotate(40deg); }
 /* Fließtext follows the same folder-chain rotation as in Typing Space. */
 .reading-sidebar:has(.folder[data-book="6"].is-active-folder) .folder[data-book="2"] { transform: rotate(-10deg); }
 .reading-sidebar:has(.folder[data-book="6"].is-active-folder) .folder[data-book="3"] { transform: rotate(-20deg); }
 .reading-sidebar:has(.folder[data-book="6"].is-active-folder) .folder[data-book="4"] { transform: rotate(-30deg); }
 .reading-sidebar:has(.folder[data-book="6"].is-active-folder) .folder[data-book="5"] { transform: rotate(-40deg); }
 .reading-content { display: contents; }
-.reading-controls { position: absolute; z-index: 2; top: var(--reading-page-edge); right: var(--reading-page-edge); width: clamp(260px, 28vw, 370px); }
+.reading-controls { position: absolute; z-index: 2; top: var(--reading-page-edge); right: var(--reading-page-edge); width: clamp(190px, 20vw, 280px); max-height: calc(100vh - var(--reading-page-edge) - var(--reading-page-edge)); overflow-y: auto; box-sizing: border-box; }
 .reading-controls .container { width: 100%; height: auto; }
 .reading-controls .controls-panel { padding: 16px; }
-.reading-controls .controls-panel { display: flex; flex-direction: column; gap: 20px; padding: 0; border: 0; background: transparent; }
+.reading-controls .controls-panel { display: flex; flex-direction: column; gap: clamp(8px, 0.5vh, 20px); padding: 0; border: 0; background: transparent; }
 .reading-controls #slider-control { width: 100%; height: auto; }
 .reading-controls .panel-box { 
   width: 100%; 
@@ -1210,7 +1232,7 @@ body.app-page-reading #reading-page { display: flex; }
   .reading-controls .panel-box .setup-box { 
     padding-bottom: 20px; }
 .reading-controls .sound-box + .sound-box { 
-  margin-top: 20px;
+  margin-top: clamp(8px, 0.5vh, 20px);
   padding-bottom: 40px; }
 .reading-controls .sound-box .low-value {
   padding-bottom: 30px; 
@@ -1238,7 +1260,7 @@ body.digital-view .reading-sidebar { left: clamp(12px, 1vw, 20px); }
 body.digital-view .reading-controls { right: calc(var(--reading-page-edge) + clamp(14px, 1.5vw, 28px)); }
 .reading-home-link { position: fixed; z-index: 3; left: var(--reading-page-edge); bottom: var(--reading-page-edge); color: inherit; }
 body.app-page-reading #website-metadata {
-  top: calc(30vh + clamp(80px, 15vh, 140px) + 20px);
+  top: calc(30vh + clamp(68px, 12.5vh, 115px) + 20px);
   right: auto;
   bottom: auto;
   left: clamp(18px, 2.5vw, 40px);
@@ -1250,5 +1272,6 @@ body.app-page-reading #website-metadata {
   #typing-page, #reading-page { flex-direction: column; padding: 20px; }.typing-sidebar, .reading-sidebar { width: 100%; }.typing-sidebar { display: block; }.folder-list, .typing-sidebar .folder-list { height: 145px; top: 0; }.folder-list .folder { height: 145px; }.typing-paper { height: 65vh; }
   .typing-topbar { width: 100%; align-items: flex-start; flex-wrap: wrap; }.typing-topbar .typing-sidebar { width: 100%; }.typing-topbar .typing-sidebar .folder-list { height: 145px; }.folder-description { width: 100%; }.typing-workspace { width: 90vw; }#move-to-reading { top: 20px; right: 20px; }
   #reading-page #canvas-holder { width: 100%; }.reading-sidebar .container { display: block; }
+  .reading-controls { width: min(100%, 340px); }
   body.digital-view #reading-page #canvas-holder { left: 50%; }
 }
