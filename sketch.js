@@ -8,7 +8,7 @@ let textX= 0;
 let textY = 80;
 let paperColor = "#f9f1f1";
 let textPosition = "top";
-let viewMode = "digital";
+let viewMode = "print";
 let mic;
 let fft;
 let currentMin = 0;
@@ -32,6 +32,7 @@ let dynamicWeight = 400;
 let dynamicY = 200;
 let dynamicX = 20;
 let dynamicBlur
+let currentCoordinates = "location unavailable";
 
 let elavateStartSlider, elavateEndSlider;
 let opaStartSlider, opaEndSlider;
@@ -46,7 +47,8 @@ let elavateSwitch, opacitySwitch, sizeSwitch, weightSwitch, highSwitch, rotateSw
 let currentPageIndex = 0;
 let allPages = [[]]
 let activeBook = "1";
-let introActive = true;
+let introActive = false;
+let hasTransferredText = false;
 let savedLines;
 let writingPlaceholder = "start your work";
 let pageDrafts = {};
@@ -67,8 +69,13 @@ let apiBase = isLocalPage && window.location.port !== API_PORT
   ? `http://${window.location.hostname}:${API_PORT}`
   : "";
 const CONTRIBUTION_COLORS = ["#ffd6e0", "#d9f2d0", "#cfe8ff", "#ffe7b8", "#e4d7ff", "#ccefe8"];
-const BOOK4_PAGE_PROMPT = "who are you without your problems?";
+const BOOK4_QUESTIONS = ["And then?", "Why?", "Is it true?", "For whom?", "Still here?"];
+const BOOK4_PAGE_PROMPT = BOOK4_QUESTIONS[0];
 const BOOK5_LINE_PREFIX = "All is ";
+
+function isBook4Question(line) {
+  return BOOK4_QUESTIONS.includes(lineText(line).trim());
+}
 // These are the starting pages shown on GitHub Pages. They were exported from
 // the local SQLite database so the public site does not need a Python server.
 const DEFAULT_BOOK_PAGES = {
@@ -101,13 +108,15 @@ const DEFAULT_BOOK_PAGES = {
     { text: "that shit happens again", contributionId: "contribution-1783983836748-uxcbwo", color: "#ffe7b8" }
   ]],
   "4": [[
-    { text: "who are you without your problems?", contributionId: "book-4-prompt", color: null },
-    { text: "an owl", contributionId: "contribution-1783983867672-4hlgn8", color: "#ffd6e0" },
-    { text: "a noon owl", contributionId: "contribution-1783983889112-rijwk6", color: "#ffe7b8" },
-    { text: "who are you without your problems?", contributionId: "contribution-1783983889112-rijwk6", color: "#ffe7b8" },
-    { text: "i am the problem", contributionId: "contribution-1783983931513-uxwjhb", color: "#ccefe8" },
-    { text: "who are you without your problems?", contributionId: "contribution-1783983931513-uxwjhb", color: "#ccefe8" },
-    { text: "but no one knows about it", contributionId: "contribution-1783983931513-uxwjhb", color: "#ccefe8" }
+    { text: "plums", contributionId: "book-4-default", color: null },
+    { text: "Is it true?", contributionId: "book-4-default", color: null },
+    { text: "it's changing season", contributionId: "book-4-default", color: null },
+    { text: "For whom?", contributionId: "book-4-default", color: null },
+    { text: "at least for the birds", contributionId: "book-4-default", color: null },
+    { text: "And then?", contributionId: "book-4-default", color: null },
+    { text: "it should be raining now", contributionId: "book-4-default", color: null },
+    { text: "Is it true?", contributionId: "book-4-default", color: null },
+    { text: "Probably not", contributionId: "book-4-default", color: null }
   ]],
   "5": [[
     { text: "All is burning", contributionId: "contribution-1783983989485-yi5xvi", color: "#e4d7ff" },
@@ -127,6 +136,32 @@ const INTRO_LINES = [
   "Let the wind scatter the letters and the noise shatter the grid.",
   "A poetic distortion is shaped by everything around you."
 ];
+
+function showAppPage(page) {
+  if (typeof window.setActivePage === "function") {
+    window.setActivePage(page);
+  } else {
+    document.body.classList.remove("app-page-home", "app-page-typing", "app-page-reading");
+    document.body.classList.add("app-page-" + page);
+  }
+  if (page === "reading" && canvasElement) requestAnimationFrame(resizeSketchCanvas);
+  if (page === "typing" && myInput) requestAnimationFrame(focusTextInput);
+}
+
+function moveTypedTextToReadingRoom() {
+  let text = myInput ? myInput.innerText.trimEnd() : "";
+  savedLines = text ? text.split("\n").map(line => ({ text: line, contributionId: null, color: null })) : [];
+  introActive = false;
+  showAppPage("reading");
+}
+
+function setupPageNavigation() {
+  document.querySelectorAll("[data-go-to]").forEach((button) => {
+    button.addEventListener("click", () => showAppPage(button.dataset.goTo));
+  });
+  let moveButton = document.querySelector("#move-to-reading");
+  if (moveButton) moveButton.addEventListener("click", moveTypedTextToReadingRoom);
+}
 
 function lineText(line) {
   return typeof line === "string" ? line : (line && typeof line.text === "string" ? line.text : "");
@@ -473,18 +508,63 @@ function binaryStringToBytes(binary) {
   return bytes;
 }
 
-function buildCanvasPdf() {
-  let jpegData = canvasElement.toDataURL("image/jpeg", 0.98);
-  let imageBinary = atob(jpegData.split(",")[1]);
+function metadataLines() {
+  return [
+    new Date().toLocaleString(),
+    currentCoordinates
+  ];
+}
+
+function getWhitePaperPdfImage() {
+  // Render one export-only frame with a white paper background, then restore
+  // the selected paper colour immediately for the on-screen canvas.
+  let selectedPaperColor = paperColor;
+  paperColor = "#ffffff";
+  draw();
+  let imageBinary = atob(canvasElement.toDataURL("image/jpeg", 0.98).split(",")[1]);
+  paperColor = selectedPaperColor;
+  draw();
+  return imageBinary;
+}
+
+async function createPdfMetadataImage(pageWidth, pageHeight) {
+  await document.fonts.ready;
+  let metadataCanvas = document.createElement("canvas");
+  metadataCanvas.width = pageWidth;
+  metadataCanvas.height = pageHeight;
+  let context = metadataCanvas.getContext("2d");
+  let metadata = metadataLines();
+  let fontSize = Math.max(28, Math.round(Math.min(pageWidth, pageHeight) * 0.055));
+  let websiteFont = window.getComputedStyle(document.body).fontFamily || "Roboto";
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, pageWidth, pageHeight);
+  context.fillStyle = "#000000";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.font = `500 ${fontSize}px ${websiteFont}`;
+  context.fillText(metadata[0], pageWidth / 2, pageHeight / 2 + fontSize * 0.75);
+  context.fillText(metadata[1], pageWidth / 2, pageHeight / 2 - fontSize * 0.75);
+
+  return atob(metadataCanvas.toDataURL("image/jpeg", 0.98).split(",")[1]);
+}
+
+async function buildCanvasPdf() {
+  let imageBinary = getWhitePaperPdfImage();
   let width = Math.round(canvasElement.width);
   let height = Math.round(canvasElement.height);
   let drawCommand = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ`;
+  let metadataImageBinary = await createPdfMetadataImage(width, height);
+  let metadataCommand = `q\n${width} 0 0 ${height} 0 0 cm\n/Im1 Do\nQ`;
   let objects = [
     "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
-    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>\nendobj\n",
     `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`,
     `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBinary.length} >>\nstream\n${imageBinary}\nendstream\nendobj\n`,
-    `5 0 obj\n<< /Length ${drawCommand.length} >>\nstream\n${drawCommand}\nendstream\nendobj\n`
+    `5 0 obj\n<< /Length ${drawCommand.length} >>\nstream\n${drawCommand}\nendstream\nendobj\n`,
+    `6 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /Im1 7 0 R >> >> /Contents 8 0 R >>\nendobj\n`,
+    `7 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${metadataImageBinary.length} >>\nstream\n${metadataImageBinary}\nendstream\nendobj\n`,
+    `8 0 obj\n<< /Length ${metadataCommand.length} >>\nstream\n${metadataCommand}\nendstream\nendobj\n`
   ];
   let pdf = "%PDF-1.3\n";
   let offsets = [0];
@@ -513,8 +593,8 @@ function exportCanvasImage() {
   }, "image/png");
 }
 
-function exportCanvasPdf() {
-  downloadBlob(buildCanvasPdf(), exportFileName("pdf"));
+async function exportCanvasPdf() {
+  downloadBlob(await buildCanvasPdf(), exportFileName("pdf"));
 }
 
 function getRecorderMimeType() {
@@ -611,8 +691,7 @@ function getEstimatedTextBlockHeight(midValue, midStart, midEnd, trebleValue, sp
 
   for (let s = 0; s < savedLines.length; s++) {
     let originalText = lineText(savedLines[s]);
-    let book4TargetPhrase = "who are you without your problems?";
-    let isBook4TypedText = activeBook === "4" && originalText.trim() !== book4TargetPhrase;
+    let isBook4TypedText = activeBook === "4" && !isBook4Question(originalText);
     let drawRows = introActive || activeBook === "1"
       ? wrapReactiveCanvasTextRows(originalText, maxTextWidth, midValue, trebleValue, spacing)
       : isBook4TypedText
@@ -683,6 +762,58 @@ function setupPaperButtons() {
   updateTextPositionControls();
 }
 
+function updateLiveFrequencyValues(bass, voices, treble) {
+  document.querySelector("#bass-value").value = Math.round(bass);
+  document.querySelector("#voices-value").value = Math.round(voices);
+  document.querySelector("#treble-value").value = Math.round(treble);
+  document.querySelector("#bass-value").textContent = Math.round(bass);
+  document.querySelector("#voices-value").textContent = Math.round(voices);
+  document.querySelector("#treble-value").textContent = Math.round(treble);
+}
+
+function setupSliderEndpointValues() {
+  document.querySelectorAll(".slider-range").forEach((sliderRange) => {
+    let thumbs = sliderRange.querySelectorAll('input[type="range"]');
+    if (thumbs.length !== 2) return;
+
+    let leftValue = document.createElement("output");
+    let rightValue = document.createElement("output");
+    leftValue.className = "slider-end-value is-left";
+    rightValue.className = "slider-end-value is-right";
+    sliderRange.append(leftValue, rightValue);
+
+    function updateEndpointValues() {
+      leftValue.value = thumbs[0].value;
+      leftValue.textContent = thumbs[0].value;
+      rightValue.value = thumbs[1].value;
+      rightValue.textContent = thumbs[1].value;
+    }
+
+    thumbs.forEach((thumb) => thumb.addEventListener("input", updateEndpointValues));
+    updateEndpointValues();
+  });
+}
+
+function requestLocation() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      currentCoordinates = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
+    },
+    () => {
+      currentCoordinates = "location unavailable";
+    },
+    { enableHighAccuracy: true, maximumAge: 60000, timeout: 10000 }
+  );
+}
+
+function updateWebsiteMetadata() {
+  let metadata = metadataLines();
+  document.querySelector("#metadata-time").textContent = metadata[0];
+  document.querySelector("#metadata-location").textContent = metadata[1];
+}
+
 function setPaperColor(color) {
   paperColor = color;
   document.body.style.setProperty("--paper-color", paperColor);
@@ -708,7 +839,7 @@ function getPrintCanvasSize() {
 
 function getDigitalCanvasSize() {
   return {
-    width: Math.max(300, windowWidth * 0.58),
+    width: Math.max(300, windowWidth * 0.64),
     height: Math.max(480, windowHeight * 0.9)
   };
 }
@@ -811,6 +942,9 @@ function setup() {
   updateCanvasHolderSize(canvasSize);
   setupExportButtons();
   setupPaperButtons();
+  setupSliderEndpointValues();
+  setupPageNavigation();
+  requestLocation();
   //PAGE BUTTONS + SAVE CONTENT FOR EACH PAGE
   let prevBtn = select('#prev-page');
   let nextBtn = select('#next-page');
@@ -856,6 +990,14 @@ function setup() {
   //TEXT INPUT
   myInput = document.querySelector("#editable-text-layer");
   lockedLayer = document.querySelector("#locked-text-layer")
+  let transferredText = sessionStorage.getItem("stochastic-current-text");
+  let transferredBook = sessionStorage.getItem("stochastic-current-book");
+  if (transferredText) {
+    activeBook = transferredBook || activeBook;
+    savedLines = transferredText.split("\n").map(line => ({ text: line, contributionId: null, color: null }));
+    introActive = false;
+    hasTransferredText = true;
+  }
   writingPlaceholder = myInput.dataset.placeholder;
   if (introActive) {
     myInput.dataset.placeholder = "pick a folder and start writing together";
@@ -958,8 +1100,7 @@ function setup() {
         }
       }
     });
-    //WITHOUT PROBLEMS (FOLDER 4)
-    let problemSwitch = false; //toggle switch to use either the 1. phrase or 2. one
+    //QUESTIONS (FOLDER 4)
     myInput.addEventListener("input", (e) => { //listen to the action happens in the input box
       if (activeBook !== "4") return; //only applied to folder 3
       if (e.inputType !== "insertParagraph") return;
@@ -971,24 +1112,23 @@ function setup() {
       let nonArr = lines.filter(line => line.trim() !== ""); //filter out the empty lines added by the browser
       let userLinesOnly = nonArr.filter(line => {
         let clean = line.trim();
-        return clean !== "who are you without your problems?"; //?
+        return !isBook4Question(clean);
       });
 
-      //ADD PHRASE AFTER EACH 3 LINES
+      //ADD ONE RANDOM QUESTION AFTER EACH WRITTEN LINE
         //Trigger Condition
         // (>0)check if the box isn't empty
-        // (% 3 === 0) Modulo checks for remainder: after every 3 lines the remainder is 0
+        // (% 1 === 0) means every written line triggers a question
         //(lines[lines.length - 1] === "") let JS know when the Enter is pressed
       if (userLinesOnly.length > 0 && userLinesOnly.length % 1 === 0 && lines[lines.length - 1] === "") {
         
         //loopSwitch ? ... : ... (a shorthand if/else): if loopSwitch is true, targetPhrase becomes the 1. phrase, or else it becomes the 2.
-        let targetPhrase = "who are you without your problems?" ;
+        let targetPhrase = BOOK4_QUESTIONS[Math.floor(Math.random() * BOOK4_QUESTIONS.length)];
         let lastLine = userLinesOnly[userLinesOnly.length - 1].trim();
         // check the last line, if not the dream loop phrase then add the phrase
-        if (!lastLine.endsWith("who are you without your problems?")) {
+        if (!isBook4Question(lastLine)) {
           //how the phrase appears, no unwanted spaces, after a line break then move to new line
           myInput.innerText = currentText.trimEnd() + "\n" + targetPhrase + "\n\n";
-          problemSwitch = !problemSwitch; //flip the toggle
           focusTextInput();
         }
       }
@@ -1009,9 +1149,6 @@ function setup() {
       myInput.innerText = BOOK5_LINE_PREFIX;
       focusTextInput();
     }
-
-    myInput.addEventListener("input", limitDraftToPage);
-    myInput.addEventListener("input", ensureAllIsPrefix);
 
     //SAVE LINES BUTTON
     // INITIALIZE TEXT LAYERS ON BOOT
@@ -1103,7 +1240,7 @@ function setup() {
   }
   document.querySelector("#slider-control").style.display = "block";
   updateActiveFolderTilt();
-  if (!introActive) {
+  if (!introActive && !hasTransferredText) {
     loadBookData(activeBook);
     requestAnimationFrame(focusTextInput);
   }
@@ -1189,6 +1326,15 @@ function setup() {
   updateGroupState(".low-value", lowGroupSwitch);
   updateGroupState(".mid-value", midGroupSwitch);
   updateGroupState(".treble-value", trebleGroupSwitch);
+
+  document.querySelectorAll(".group-toggle").forEach((toggle) => {
+    toggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      let checkbox = toggle.querySelector('input[type="checkbox"]');
+      checkbox.checked = !checkbox.checked;
+      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
  
 
 
@@ -1365,6 +1511,7 @@ function draw() {
   lowValue = fft.getEnergy (20, 250);
   midValue = fft.getEnergy(250, 4000);
   trebleValue = fft.getEnergy(4000, 14000);
+  updateLiveFrequencyValues(lowValue, midValue, trebleValue);
 
 
 
@@ -1417,8 +1564,7 @@ function draw() {
   let dreamLoopParagraphX = null; //makes the whole paragraph share one x, instead of resetting after one line
   for (let s = 0; s < savedLines.length; s++) {
     let originalText = lineText(savedLines[s]);
-    let book4TargetPhrase = "who are you without your problems?";
-    let isBook4TargetPhrase = activeBook === "4" && originalText.trim() === book4TargetPhrase;
+    let isBook4TargetPhrase = activeBook === "4" && isBook4Question(originalText);
     let isBook4TypedText = activeBook === "4" && !isBook4TargetPhrase;
     let centerFontSize = getCurrentMidSize(midValue, frameCount * 0.01);
     let centerFontWeight = 400;
@@ -1576,6 +1722,8 @@ function draw() {
   }
   lineOffset += 40; 
   }
+
+  updateWebsiteMetadata();
   
   
   
