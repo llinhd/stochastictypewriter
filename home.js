@@ -1,26 +1,23 @@
 const homeMessages = {
-  info: "Stochastic Typewriter is inspired by Johanna Drucker's letterpress book Stochastic Poetics, which proposes that poetry evolves under conditions that cannot be predicted. Drucker printed it that way too, \n with shifting lines and overprinting \nthat made every copy unique.\n\nStochastic Typewriter carries that idea from the press to the screen: a programmed typewriter whose rules bend your words as you write, \nand a room where the surrounding sound, wind, and noise reshape them as they are read_",
-  typing: "Typing Space is where your words enter the machine.You write, and the machine intervenes.\n\nChoose a folder and write into the open page. Each folder is a small machine with its own rules. \n It bends the rhythm and behaviour of your words before they travel on to the Reading Room_",
-  reading: "Reading Room is where your words are \nread back by your surroundings and distractions.\n\n Turn on your microphone. Let the sound, wind, and noise scatter letters, and reshape the text on the paper_"
+  info: "Stochastic Typewriter is inspired by Johanna Drucker's \nletterpress book Stochastic Poetics, which proposes that poetry evolves under conditions that cannot be predicted. \nDrucker printed it that way too, with shifting lines and overprinting that made every copy unique.\n\nStochastic Typewriter carries that idea from the press to the screen: a programmed typewriter whose rules bend your words as you write, and a room where the surrounding sound, wind, \nand noise reshape them as they are read_",
+  typing: "Typing Space is where your words enter the machine.\nYou write, and the machine intervenes.\n\nChoose a folder and write into the open page. \nEach folder is a small machine with its own rules. \n It bends the rhythm and behaviour of your words\n before they travel on to the Reading Room_",
+  reading: "Reading Room is where your words are \nread back by your surroundings and distractions.\n\n Turn on your microphone. Let the sound, wind, \nand noise scatter letters, and reshape the text \non the paper_"
 };
 const homeTypedText = document.querySelector("#home-typed-text");
 const homePaperLink = document.querySelector("#home-paper-link");
-let homeTypeTimer;
+
+function showHomePaperMessage(message) {
+  homeTypedText.textContent = message;
+}
+
 function typeHomeMessage(section) {
-  window.clearTimeout(homeTypeTimer);
   const message = homeMessages[section];
-  homeTypedText.textContent = "";
   const destination = section === "typing" ? "typing-space.html" : section === "reading" ? "reading-room.html" : "";
   homePaperLink.hidden = !destination;
   homePaperLink.href = destination || "#";
   const destinationLabel = section === "typing" ? "typing space" : "reading room";
   homePaperLink.textContent = destination ? destinationLabel + " →" : "";
-  let index = 0;
-  function addCharacter() {
-    homeTypedText.textContent = message.slice(0, index++);
-    if (index <= message.length) homeTypeTimer = window.setTimeout(addCharacter, 12);
-  }
-  addCharacter();
+  showHomePaperMessage(message);
 }
 document.querySelectorAll(".home-folder").forEach((button) => {
   button.addEventListener("click", () => {
